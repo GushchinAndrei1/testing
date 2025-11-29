@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Night Runner</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: rgba(255, 255, 255, 0.03);
+      --accent: #5be7c4;
+      --accent-2: #ff8cda;
+      --text: #e8edf5;
+      --muted: #7f8ba3;
+      --ground: #1b2235;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(91, 231, 196, 0.08), transparent 30%),
+        radial-gradient(circle at 80% 0%, rgba(255, 140, 218, 0.08), transparent 25%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Inter", "SF Pro Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .frame {
+      width: min(920px, 100%);
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+      padding: 20px 20px 28px;
+      backdrop-filter: blur(10px);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .title {
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .stats {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 8px 12px;
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 260px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(12, 16, 26, 0.6)),
+        radial-gradient(circle at 20% 30%, rgba(91, 231, 196, 0.05), transparent 35%),
+        radial-gradient(circle at 70% 40%, rgba(255, 140, 218, 0.05), transparent 40%),
+        #0d1220;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      display: block;
+      touch-action: manipulation;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0a0d16;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(91, 231, 196, 0.25);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 34px rgba(91, 231, 196, 0.35);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.55));
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      text-align: center;
+    }
+
+    .overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .score-big {
+      font-size: 42px;
+      letter-spacing: 1px;
+    }
+
+    .instruction {
+      color: var(--muted);
+    }
+
+    .touch-controls {
+      display: none;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .btn.control {
+      flex: 1;
+      min-height: 46px;
+      font-size: 15px;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .frame {
+        padding: 14px 14px 18px;
+      }
+
+      canvas {
+        height: 230px;
+      }
+
+      .footer {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .touch-controls {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="header">
+      <div class="title">
+        <div class="chip">Night Runner</div>
+        <div style="color: var(--muted); font-weight: 600">Jump over neon cacti</div>
+      </div>
+      <div class="stats">
+        <div class="stat">Score: <span id="score">0000</span></div>
+        <div class="stat">Best: <span id="best">0000</span></div>
+      </div>
+    </div>
+    <div style="position: relative;">
+      <canvas id="game" width="900" height="260"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="score-big">Game Over</div>
+        <div>Score: <span id="finalScore">0</span> • Best: <span id="finalBest">0</span></div>
+        <div class="instruction">Press Space / tap Jump to restart</div>
+        <button class="btn" id="restart">Restart</button>
+      </div>
+    </div>
+    <div class="footer">
+      <div>Controls: Space / ↑ to jump • ↓ to duck</div>
+      <div class="instruction">Speed ramps up the longer you survive</div>
+    </div>
+    <div class="touch-controls">
+      <button class="btn control" id="tapJump">Tap / Hold Jump</button>
+      <button class="btn control" id="tapDuck">Hold Duck</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // Core game state and settings
+      const config = {
+        gravity: 1800,
+        jumpForce: 780,
+        ground: 215,
+        width: 900,
+        height: 260,
+        spawnInterval: [900, 1300],
+        speedStart: 320,
+        speedIncrement: 0.14,
+        maxSpeed: 760,
+        scoreRate: 0.015,
+      };
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("best");
+      const overlay = document.getElementById("overlay");
+      const restartBtn = document.getElementById("restart");
+      const finalScore = document.getElementById("finalScore");
+      const finalBest = document.getElementById("finalBest");
+      const tapJump = document.getElementById("tapJump");
+      const tapDuck = document.getElementById("tapDuck");
+
+      const Game = {
+        obstacles: [],
+        pressed: new Set(),
+        lastTime: 0,
+        speed: config.speedStart,
+        score: 0,
+        best: Number(localStorage.getItem("nr_best") || 0),
+        state: "playing",
+        nextSpawn: 0,
+        runner: {
+          x: 110,
+          y: config.ground,
+          vy: 0,
+          width: 34,
+          height: 46,
+          duckHeight: 30,
+          isDucking: false,
+          onGround: true,
+        },
+      };
+
+      bestEl.textContent = Game.best.toString().padStart(4, "0");
+
+      // Input handling: jump and duck
+      function setPress(code, isDown) {
+        if (isDown) Game.pressed.add(code);
+        else Game.pressed.delete(code);
+
+        if (Game.state === "gameover" && isDown && code === "Space") {
+          resetGame();
+        }
+      }
+
+      function handleKey(e, isDown) {
+        const key = e.code;
+        if (["Space", "ArrowUp", "ArrowDown"].includes(key)) {
+          e.preventDefault();
+          setPress(key, isDown);
+        }
+      }
+
+      document.addEventListener("keydown", (e) => handleKey(e, true));
+      document.addEventListener("keyup", (e) => handleKey(e, false));
+      restartBtn.addEventListener("click", resetGame);
+
+      // Touch buttons for mobile play
+      const pressStart = (code) => (e) => {
+        e.preventDefault();
+        setPress(code, true);
+      };
+      const pressEnd = (code) => (e) => {
+        e.preventDefault();
+        setPress(code, false);
+      };
+
+      tapJump.addEventListener("touchstart", pressStart("Space"));
+      tapJump.addEventListener("touchend", pressEnd("Space"));
+      tapJump.addEventListener("mousedown", pressStart("Space"));
+      tapJump.addEventListener("mouseup", pressEnd("Space"));
+      tapJump.addEventListener("mouseleave", pressEnd("Space"));
+
+      tapDuck.addEventListener("touchstart", pressStart("ArrowDown"));
+      tapDuck.addEventListener("touchend", pressEnd("ArrowDown"));
+      tapDuck.addEventListener("mousedown", pressStart("ArrowDown"));
+      tapDuck.addEventListener("mouseup", pressEnd("ArrowDown"));
+      tapDuck.addEventListener("mouseleave", pressEnd("ArrowDown"));
+
+      // Tap anywhere on the canvas to jump quickly
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        setPress("Space", true);
+      });
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        setPress("Space", false);
+      });
+
+      // Reset game state after a collision
+      function resetGame() {
+        Game.obstacles = [];
+        Game.speed = config.speedStart;
+        Game.score = 0;
+        Game.state = "playing";
+        Game.runner.y = config.ground;
+        Game.runner.vy = 0;
+        Game.runner.onGround = true;
+        Game.runner.isDucking = false;
+        Game.nextSpawn = 0;
+        Game.lastTime = performance.now();
+        overlay.classList.remove("visible");
+        requestAnimationFrame(loop);
+      }
+
+      // Spawn ground or flying obstacles
+      function spawnObstacle() {
+        const heightOptions = [28, 40, 52];
+        const type = Math.random() > 0.8 ? "fly" : "ground";
+        const height = heightOptions[Math.floor(Math.random() * heightOptions.length)];
+        const obstacle = {
+          x: config.width + 40,
+          y: type === "ground" ? config.ground : config.ground - 100 - Math.random() * 20,
+          width: type === "ground" ? 18 + Math.random() * 12 : 44,
+          height: type === "ground" ? height : 26,
+          type,
+        };
+        Game.obstacles.push(obstacle);
+        Game.nextSpawn = config.spawnInterval[0] + Math.random() * (config.spawnInterval[1] - config.spawnInterval[0]);
+      }
+
+      // Collision detection using axis-aligned bounding boxes
+      function isColliding(a, b) {
+        return !(a.x + a.width < b.x || a.x > b.x + b.width || a.y < b.y - b.height || a.y - a.height > b.y);
+      }
+
+      // Update physics, obstacles, and score
+      function update(dt) {
+        const r = Game.runner;
+
+        // Jumping and ducking logic
+        if ((Game.pressed.has("Space") || Game.pressed.has("ArrowUp")) && r.onGround) {
+          r.vy = -config.jumpForce;
+          r.onGround = false;
+        }
+        r.isDucking = Game.pressed.has("ArrowDown") && r.onGround;
+
+        // Apply gravity
+        r.vy += config.gravity * dt;
+        r.y += r.vy * dt;
+        const currentHeight = r.isDucking ? r.duckHeight : r.height;
+
+        if (r.y > config.ground) {
+          r.y = config.ground;
+          r.vy = 0;
+          r.onGround = true;
+        }
+
+        // Move obstacles
+        Game.obstacles.forEach((o) => (o.x -= Game.speed * dt));
+        Game.obstacles = Game.obstacles.filter((o) => o.x + o.width > -20);
+
+        // Spawn new obstacles over time
+        Game.nextSpawn -= dt * 1000;
+        if (Game.nextSpawn <= 0) spawnObstacle();
+
+        // Difficulty ramp
+        Game.speed = Math.min(Game.speed + config.speedIncrement, config.maxSpeed);
+
+        // Score system
+        Game.score += dt * Game.speed * config.scoreRate;
+        scoreEl.textContent = Math.floor(Game.score).toString().padStart(4, "0");
+
+        // Collision detection
+        const runnerBox = { x: r.x, y: r.y, width: r.width, height: currentHeight };
+        for (const o of Game.obstacles) {
+          const obBox = { x: o.x, y: o.y, width: o.width, height: o.height };
+          if (isColliding(runnerBox, obBox)) {
+            endGame();
+            break;
+          }
+        }
+      }
+
+      // Draw the scene using the canvas API
+      function draw() {
+        ctx.clearRect(0, 0, config.width, config.height);
+
+        // ground
+        ctx.fillStyle = config.groundColor || "var(--ground)";
+        ctx.fillRect(0, config.ground + 8, config.width, 2);
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
+        ctx.fillRect(0, config.ground + 10, config.width, 16);
+
+        // parallax stars
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        for (let i = 0; i < 40; i++) {
+          const x = (i * 23 + (performance.now() / 40)) % config.width;
+          const y = 20 + (i * 17) % Math.max(100, config.height / 2);
+          ctx.fillRect(config.width - x, y, 2, 2);
+        }
+
+        // obstacles
+        Game.obstacles.forEach((o) => {
+          const grad = ctx.createLinearGradient(o.x, o.y - o.height, o.x + o.width, o.y);
+          if (o.type === "ground") {
+            grad.addColorStop(0, "#4ad1b0");
+            grad.addColorStop(1, "#2ec29a");
+          } else {
+            grad.addColorStop(0, "#ffb5ec");
+            grad.addColorStop(1, "#f089d6");
+          }
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(o.x, o.y - o.height, o.width, o.height, 4);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,0.18)";
+          ctx.fillRect(o.x + o.width * 0.2, o.y - o.height + 4, 2, o.height - 8);
+        });
+
+        // runner (a small robot)
+        const r = Game.runner;
+        const h = r.isDucking ? r.duckHeight : r.height;
+        ctx.save();
+        ctx.translate(r.x, r.y);
+
+        // body
+        ctx.fillStyle = "#e8f7ff";
+        ctx.beginPath();
+        ctx.roundRect(-r.width / 2, -h, r.width, h, 8);
+        ctx.fill();
+
+        // visor
+        ctx.fillStyle = "#0b1323";
+        ctx.roundRect(-r.width / 3, -h + 8, r.width * 0.75, 16, 6);
+        ctx.fill();
+
+        // accent
+        ctx.fillStyle = "#5be7c4";
+        ctx.fillRect(r.width / 2 - 4, -h + 12, 4, 10);
+
+        // legs
+        ctx.fillStyle = "#c3d9e8";
+        const legOffset = Math.sin(performance.now() / 80) * 3;
+        ctx.fillRect(-r.width / 2, -4, 8, 10 + legOffset);
+        ctx.fillRect(r.width / 2 - 8, -4, 8, 10 - legOffset);
+
+        ctx.restore();
+      }
+
+      function endGame() {
+        Game.state = "gameover";
+        Game.best = Math.max(Game.best, Math.floor(Game.score));
+        localStorage.setItem("nr_best", Game.best);
+        bestEl.textContent = Game.best.toString().padStart(4, "0");
+        finalScore.textContent = Math.floor(Game.score);
+        finalBest.textContent = Game.best;
+        overlay.classList.add("visible");
+      }
+
+      // Main loop driven by requestAnimationFrame
+      function loop(timestamp) {
+        if (Game.state !== "playing") return;
+        if (!Game.lastTime) Game.lastTime = timestamp;
+        const dt = Math.min((timestamp - Game.lastTime) / 1000, 0.032);
+        Game.lastTime = timestamp;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const scale = window.devicePixelRatio || 1;
+        const targetHeight = Math.max(220, Math.min(320, rect.width * 0.3));
+        config.width = Math.round(rect.width);
+        config.height = Math.round(targetHeight);
+        config.ground = Math.round(config.height - 45);
+        canvas.width = Math.round(rect.width * scale);
+        canvas.height = Math.round(targetHeight * scale);
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        Game.runner.y = config.ground;
+      }
+
+      // Start automatically
+      function initGame() {
+        resize();
+        Game.lastTime = performance.now();
+        requestAnimationFrame(loop);
+      }
+
+      window.addEventListener("resize", resize);
+
+      initGame();
+    })();
+  </script>
+</body>
+</html>
