@@ -274,7 +274,7 @@
 
       bestEl.textContent = Game.best.toString().padStart(4, "0");
 
-      // Input handling: jump and duck
+      // Input handling helpers
       function setPress(code, isDown) {
         if (isDown) Game.pressed.add(code);
         else Game.pressed.delete(code);
@@ -318,7 +318,7 @@
       tapDuck.addEventListener("mouseup", pressEnd("ArrowDown"));
       tapDuck.addEventListener("mouseleave", pressEnd("ArrowDown"));
 
-      // Tap anywhere on the canvas to jump quickly
+      // Tap on canvas to jump
       canvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
         setPress("Space", true);
@@ -357,12 +357,19 @@
           type,
         };
         Game.obstacles.push(obstacle);
-        Game.nextSpawn = config.spawnInterval[0] + Math.random() * (config.spawnInterval[1] - config.spawnInterval[0]);
+        Game.nextSpawn =
+          config.spawnInterval[0] +
+          Math.random() * (config.spawnInterval[1] - config.spawnInterval[0]);
       }
 
       // Collision detection using axis-aligned bounding boxes
       function isColliding(a, b) {
-        return !(a.x + a.width < b.x || a.x > b.x + b.width || a.y < b.y - b.height || a.y - a.height > b.y);
+        return !(
+          a.x + a.width < b.x ||
+          a.x > b.x + b.width ||
+          a.y < b.y - b.height ||
+          a.y - a.height > b.y
+        );
       }
 
       // Update physics, obstacles, and score
@@ -426,14 +433,19 @@
         // parallax stars
         ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
         for (let i = 0; i < 40; i++) {
-          const x = (i * 23 + (performance.now() / 40)) % config.width;
-          const y = 20 + (i * 17) % Math.max(100, config.height / 2);
+          const x = (i * 23 + performance.now() / 40) % config.width;
+          const y = 20 + ((i * 17) % Math.max(100, config.height / 2));
           ctx.fillRect(config.width - x, y, 2, 2);
         }
 
         // obstacles
         Game.obstacles.forEach((o) => {
-          const grad = ctx.createLinearGradient(o.x, o.y - o.height, o.x + o.width, o.y);
+          const grad = ctx.createLinearGradient(
+            o.x,
+            o.y - o.height,
+            o.x + o.width,
+            o.y
+          );
           if (o.type === "ground") {
             grad.addColorStop(0, "#4ad1b0");
             grad.addColorStop(1, "#2ec29a");
@@ -446,7 +458,12 @@
           ctx.roundRect(o.x, o.y - o.height, o.width, o.height, 4);
           ctx.fill();
           ctx.fillStyle = "rgba(255,255,255,0.18)";
-          ctx.fillRect(o.x + o.width * 0.2, o.y - o.height + 4, 2, o.height - 8);
+          ctx.fillRect(
+            o.x + o.width * 0.2,
+            o.y - o.height + 4,
+            2,
+            o.height - 8
+          );
         });
 
         // runner (a small robot)
@@ -489,17 +506,7 @@
         overlay.classList.add("visible");
       }
 
-      // Main loop driven by requestAnimationFrame
-      function loop(timestamp) {
-        if (Game.state !== "playing") return;
-        if (!Game.lastTime) Game.lastTime = timestamp;
-        const dt = Math.min((timestamp - Game.lastTime) / 1000, 0.032);
-        Game.lastTime = timestamp;
-        update(dt);
-        draw();
-        requestAnimationFrame(loop);
-      }
-
+      // Responsive canvas sizing
       function resize() {
         const rect = canvas.getBoundingClientRect();
         const scale = window.devicePixelRatio || 1;
@@ -513,6 +520,17 @@
         Game.runner.y = config.ground;
       }
 
+      // Main loop driven by requestAnimationFrame
+      function loop(timestamp) {
+        if (Game.state !== "playing") return;
+        if (!Game.lastTime) Game.lastTime = timestamp;
+        const dt = Math.min((timestamp - Game.lastTime) / 1000, 0.032);
+        Game.lastTime = timestamp;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
       // Start automatically
       function initGame() {
         resize();
@@ -521,7 +539,6 @@
       }
 
       window.addEventListener("resize", resize);
-
       initGame();
     })();
   </script>
