@@ -94,6 +94,7 @@
       border: 1px solid rgba(255, 255, 255, 0.05);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
       display: block;
+      touch-action: manipulation;
     }
 
     .footer {
@@ -154,6 +155,42 @@
     .instruction {
       color: var(--muted);
     }
+
+    .touch-controls {
+      display: none;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .btn.control {
+      flex: 1;
+      min-height: 46px;
+      font-size: 15px;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .frame {
+        padding: 14px 14px 18px;
+      }
+
+      canvas {
+        height: 230px;
+      }
+
+      .footer {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .touch-controls {
+        display: flex;
+      }
+    }
   </style>
 </head>
 <body>
@@ -173,13 +210,17 @@
       <div class="overlay" id="overlay">
         <div class="score-big">Game Over</div>
         <div>Score: <span id="finalScore">0</span> • Best: <span id="finalBest">0</span></div>
-        <div class="instruction">Press Space to restart or click below</div>
+        <div class="instruction">Press Space / tap Jump to restart</div>
         <button class="btn" id="restart">Restart</button>
       </div>
     </div>
     <div class="footer">
       <div>Controls: Space / ↑ to jump • ↓ to duck</div>
       <div class="instruction">Speed ramps up the longer you survive</div>
+    </div>
+    <div class="touch-controls">
+      <button class="btn control" id="tapJump">Tap / Hold Jump</button>
+      <button class="btn control" id="tapDuck">Hold Duck</button>
     </div>
   </div>
 
@@ -207,6 +248,8 @@
       const restartBtn = document.getElementById("restart");
       const finalScore = document.getElementById("finalScore");
       const finalBest = document.getElementById("finalBest");
+      const tapJump = document.getElementById("tapJump");
+      const tapDuck = document.getElementById("tapDuck");
 
       const Game = {
         obstacles: [],
@@ -231,22 +274,59 @@
 
       bestEl.textContent = Game.best.toString().padStart(4, "0");
 
-      // Input handling: jump and duck
+      // Input handling helpers
+      function setPress(code, isDown) {
+        if (isDown) Game.pressed.add(code);
+        else Game.pressed.delete(code);
+
+        if (Game.state === "gameover" && isDown && code === "Space") {
+          resetGame();
+        }
+      }
+
       function handleKey(e, isDown) {
         const key = e.code;
         if (["Space", "ArrowUp", "ArrowDown"].includes(key)) {
           e.preventDefault();
-        }
-        if (isDown) Game.pressed.add(key); else Game.pressed.delete(key);
-
-        if (Game.state === "gameover" && isDown && key === "Space") {
-          resetGame();
+          setPress(key, isDown);
         }
       }
 
       document.addEventListener("keydown", (e) => handleKey(e, true));
       document.addEventListener("keyup", (e) => handleKey(e, false));
       restartBtn.addEventListener("click", resetGame);
+
+      // Touch buttons for mobile play
+      const pressStart = (code) => (e) => {
+        e.preventDefault();
+        setPress(code, true);
+      };
+      const pressEnd = (code) => (e) => {
+        e.preventDefault();
+        setPress(code, false);
+      };
+
+      tapJump.addEventListener("touchstart", pressStart("Space"));
+      tapJump.addEventListener("touchend", pressEnd("Space"));
+      tapJump.addEventListener("mousedown", pressStart("Space"));
+      tapJump.addEventListener("mouseup", pressEnd("Space"));
+      tapJump.addEventListener("mouseleave", pressEnd("Space"));
+
+      tapDuck.addEventListener("touchstart", pressStart("ArrowDown"));
+      tapDuck.addEventListener("touchend", pressEnd("ArrowDown"));
+      tapDuck.addEventListener("mousedown", pressStart("ArrowDown"));
+      tapDuck.addEventListener("mouseup", pressEnd("ArrowDown"));
+      tapDuck.addEventListener("mouseleave", pressEnd("ArrowDown"));
+
+      // Tap on canvas to jump
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        setPress("Space", true);
+      });
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        setPress("Space", false);
+      });
 
       // Reset game state after a collision
       function resetGame() {
@@ -277,12 +357,19 @@
           type,
         };
         Game.obstacles.push(obstacle);
-        Game.nextSpawn = config.spawnInterval[0] + Math.random() * (config.spawnInterval[1] - config.spawnInterval[0]);
+        Game.nextSpawn =
+          config.spawnInterval[0] +
+          Math.random() * (config.spawnInterval[1] - config.spawnInterval[0]);
       }
 
       // Collision detection using axis-aligned bounding boxes
       function isColliding(a, b) {
-        return !(a.x + a.width < b.x || a.x > b.x + b.width || a.y < b.y - b.height || a.y - a.height > b.y);
+        return !(
+          a.x + a.width < b.x ||
+          a.x > b.x + b.width ||
+          a.y < b.y - b.height ||
+          a.y - a.height > b.y
+        );
       }
 
       // Update physics, obstacles, and score
@@ -346,14 +433,19 @@
         // parallax stars
         ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
         for (let i = 0; i < 40; i++) {
-          const x = (i * 23 + (performance.now() / 40)) % config.width;
-          const y = 20 + (i * 17) % 120;
+          const x = (i * 23 + performance.now() / 40) % config.width;
+          const y = 20 + ((i * 17) % Math.max(100, config.height / 2));
           ctx.fillRect(config.width - x, y, 2, 2);
         }
 
         // obstacles
         Game.obstacles.forEach((o) => {
-          const grad = ctx.createLinearGradient(o.x, o.y - o.height, o.x + o.width, o.y);
+          const grad = ctx.createLinearGradient(
+            o.x,
+            o.y - o.height,
+            o.x + o.width,
+            o.y
+          );
           if (o.type === "ground") {
             grad.addColorStop(0, "#4ad1b0");
             grad.addColorStop(1, "#2ec29a");
@@ -366,7 +458,12 @@
           ctx.roundRect(o.x, o.y - o.height, o.width, o.height, 4);
           ctx.fill();
           ctx.fillStyle = "rgba(255,255,255,0.18)";
-          ctx.fillRect(o.x + o.width * 0.2, o.y - o.height + 4, 2, o.height - 8);
+          ctx.fillRect(
+            o.x + o.width * 0.2,
+            o.y - o.height + 4,
+            2,
+            o.height - 8
+          );
         });
 
         // runner (a small robot)
@@ -409,6 +506,20 @@
         overlay.classList.add("visible");
       }
 
+      // Responsive canvas sizing
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const scale = window.devicePixelRatio || 1;
+        const targetHeight = Math.max(220, Math.min(320, rect.width * 0.3));
+        config.width = Math.round(rect.width);
+        config.height = Math.round(targetHeight);
+        config.ground = Math.round(config.height - 45);
+        canvas.width = Math.round(rect.width * scale);
+        canvas.height = Math.round(targetHeight * scale);
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        Game.runner.y = config.ground;
+      }
+
       // Main loop driven by requestAnimationFrame
       function loop(timestamp) {
         if (Game.state !== "playing") return;
@@ -422,12 +533,12 @@
 
       // Start automatically
       function initGame() {
-        canvas.width = config.width;
-        canvas.height = config.height;
+        resize();
         Game.lastTime = performance.now();
         requestAnimationFrame(loop);
       }
 
+      window.addEventListener("resize", resize);
       initGame();
     })();
   </script>
